@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Simple Search Proxy</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { --bg: #ffffff; --muted: #555; --maxw: 640px; }
+    html,body { height:100%; margin:0; font-family: system-ui, Arial, sans-serif; background:var(--bg); }
+    main { padding: 2rem; display:flex; flex-direction:column; align-items:stretch; gap:1rem; max-width:var(--maxw); margin:0 auto; }
+
+    form { display:flex; gap:8px; }
+    input[type="text"]{flex:1;padding:8px;border:1px solid #ccc;border-radius:4px}
+    button{padding:8px 12px;border-radius:4px}
+
+    .notice { color:var(--muted); font-size:0.9rem }
+
+    .startup-overlay {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 300ms ease, visibility 300ms ease;
+    }
+    .startup-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .overlay-input {
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      border: none;
+      outline: none;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
+      z-index:10000;
+    }
+    .hint.visible { display:block; }
+  </style>
+</head>
+<body>
+  <div id="startupOverlay" class="startup-overlay" aria-hidden="false" role="dialog" aria-label="Startup overlay">
+    <input id="overlayInput" class="overlay-input" type="text"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           aria-label="Type passphrase to continue" />
+  </div>
+
+  <div id="hint" class="hint" aria-hidden="true">Type "bypass" to continue</div>
+
+  <main>
+    <h1>Simple Search Proxy (edu)</h1>
+
+    <form action="/search" method="get" target="_self">
+      <input name="q" type="text" placeholder="Search query" required />
+      <button type="submit">Search</button>
+    </form>
+
+    <p class="notice">
+      This is a minimal educational proxy. Do not use it for illegal activities. If you plan to run this publicly, add authentication, stricter rate-limiting, logging, and legal terms.
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      const REQUIRED_PHRASE = 'bypass';
+      const overlay = document.getElementById('startupOverlay');
+      const input = document.getElementById('overlayInput');
+      const hint = document.getElementById('hint');
+      const STORAGE_KEY = 'simple_search_proxy_bypassed_v1';
+
+      function hideOverlay() {
+        overlay.classList.add('hidden');
+        overlay.setAttribute('aria-hidden','true');
+        hint.setAttribute('aria-hidden','true');
+        setTimeout(() => {
+          if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 350);
+      }
+
+      try {
+        if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
+          hideOverlay();
+          return;
+        }
+      } catch (e) {}
+
+      function tryFocusInput() {
+        try { input.focus({ preventScroll: true }); } catch (e) { try { input.focus(); } catch (e2) {} }
+      }
+
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        tryFocusInput();
+      } else {
+        document.addEventListener('DOMContentLoaded', tryFocusInput, { once: true });
+      }
+
+      input.addEventListener('input', () => {
+        if (input.value === REQUIRED_PHRASE) {
+          try { sessionStorage.setItem(STORAGE_KEY, 'true'); } catch (e) {}
+          input.value = '';
+          hideOverlay();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && input.value === REQUIRED_PHRASE) {
+          e.preventDefault();
+          try { sessionStorage.setItem(STORAGE_KEY, 'true'); } catch (e) {}
+          input.value = '';
+          hideOverlay();
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (overlay.classList.contains('hidden')) return;
+        if (e.key === '?' || e.key === '/') {
+          e.preventDefault();
+          hint.classList.add('visible');
+          hint.setAttribute('aria-hidden','false');
+          setTimeout(() => {
+            hint.classList.remove('visible');
+            hint.setAttribute('aria-hidden','true');
+          }, 4000);
+        }
+      });
+
+      overlay.addEventListener('click', tryFocusInput);
+    })();
+  </script>
+</body>
+</html>
